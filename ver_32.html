@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>카페 메뉴 OOP 다형성 웹앱</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root, [data-theme="light"] {
+      --bg: #f7f6f2; --surface:#fbfaf7; --surface2:#ffffff; --surface3:#f3f0ec; --border:#d9d4cb;
+      --text:#26231c; --muted:#6f6960; --faint:#a19a8f; --primary:#0b6a70; --primary2:#0f8188;
+      --primarySoft: rgba(11,106,112,.12); --shadow: 0 10px 30px rgba(40,37,29,.08);
+      --radius1: 14px; --radius2: 18px; --radius3: 26px; --radius4: 999px;
+      --coffee:#8b5e3c; --tea:#6a8c47; --dessert:#b96e87; --warn:#a04c1b;
+      --font-body:'IBM Plex Sans KR', sans-serif; --font-display:'Montserrat', sans-serif;
+    }
+    [data-theme="dark"] {
+      --bg: #171614; --surface:#1e1c1a; --surface2:#24221f; --surface3:#2a2724; --border:#403b35;
+      --text:#f1ede6; --muted:#b7afa4; --faint:#857d72; --primary:#5fb7bc; --primary2:#89d0d4;
+      --primarySoft: rgba(95,183,188,.16); --shadow: 0 10px 30px rgba(0,0,0,.30);
+      --coffee:#dfab7c; --tea:#a8db7a; --dessert:#efabc1; --warn:#e29b67;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body); }
+    .app-bg {
+      min-height:100dvh;
+      background:
+        radial-gradient(circle at top right, rgba(11,106,112,.10), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(160,76,27,.08), transparent 18%),
+        var(--bg);
+    }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius3); box-shadow:var(--shadow); }
+    .soft { background:var(--surface3); border:1px solid var(--border); border-radius:var(--radius2); }
+    .panel-title { font-family:var(--font-display); font-weight:700; letter-spacing:-.02em; }
+    .chip { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .7rem; border-radius:999px; font-size:.78rem; font-weight:700; background:var(--surface3); border:1px solid var(--border); }
+    .chip.coffee { color:var(--coffee); }
+    .chip.tea { color:var(--tea); }
+    .chip.dessert { color:var(--dessert); }
+    .btn { border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:999px; padding:.8rem 1.1rem; font-weight:700; transition:transform .18s, background .18s, border-color .18s, box-shadow .18s; }
+    .btn:hover { transform:translateY(-1px); background:var(--surface3); }
+    .btn.primary { background:var(--primary); color:#fff; border-color:transparent; }
+    .btn.primary:hover { background:var(--primary2); }
+    .btn.ghost { background:transparent; }
+    .btn.active { background:var(--primarySoft); border-color:var(--primary); }
+    .node {
+      border:1px solid var(--border); border-radius:18px; background:var(--surface2); padding:1rem; cursor:pointer; transition:.18s; min-height:132px;
+    }
+    .node:hover, .node:focus-visible, .instance:hover, .instance:focus-visible { transform:translateY(-2px); box-shadow:var(--shadow); outline:none; }
+    .node.active, .instance.active { border-color:var(--primary); background:var(--primarySoft); }
+    .line {
+      display:flex; flex-direction:column; align-items:center;
+      min-height:36px; margin:auto;
+    }
+    .line::before {
+      content:''; width:0; height:0;
+      border-left:7px solid transparent; border-right:7px solid transparent;
+      border-bottom:10px solid color-mix(in srgb, var(--primary) 70%, transparent);
+    }
+    .line::after {
+      content:''; width:2px; flex:1; min-height:20px;
+      background:color-mix(in srgb, var(--primary) 40%, var(--border));
+    }
+    .result-box { border:1px solid var(--border); background:var(--surface2); border-radius:var(--radius2); padding:1rem; }
+    .grid-2 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:.7rem; }
+    .grid-3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:.7rem; }
+    .grid-4 { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:.6rem; }
+    .meta { display:grid; grid-template-columns:120px 1fr; gap:.4rem .8rem; font-size:.95rem; }
+    .meta dt { color:var(--muted); font-weight:700; }
+    .meta dd { margin:0; }
+    .menu-card { border:1px solid var(--border); background:var(--surface2); border-radius:20px; padding:1rem; cursor:pointer; transition:.18s; display:flex; flex-direction:column; gap:.45rem; }
+    .menu-card:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+    .menu-card.active { border-color:var(--primary); background:var(--primarySoft); }
+    .opt-row { display:grid; grid-template-columns: minmax(0, 1fr) auto; gap:.8rem; align-items:center; padding:.9rem 0; }
+    .opt-row + .opt-row { border-top:1px solid var(--border); }
+    .opt-title { font-weight:800; }
+    .opt-desc { font-size:.9rem; color:var(--muted); margin-top:.18rem; }
+    .price { font-weight:800; white-space:nowrap; }
+    .qty { display:inline-flex; align-items:center; gap:.4rem; justify-content:flex-end; }
+    .qty button { width:34px; height:34px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); font-weight:800; }
+    .qty span { min-width:24px; text-align:center; font-weight:800; }
+    .tabbar { display:flex; flex-wrap:wrap; gap:.55rem; }
+    .hidden { display:none !important; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .order-item { border-left:3px solid color-mix(in srgb, var(--primary) 60%, transparent); padding-left:.8rem; }
+    .sticky-bot { position:sticky; bottom:0; background:linear-gradient(to top, var(--bg) 78%, transparent); padding-top:.8rem; }
+    @media (max-width: 1024px) { .meta { grid-template-columns:1fr; } }
+    @media (max-width: 768px) { .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; } }
+  
+    .btnToggle, .btnSize {
+      border:1px solid var(--border); background:var(--surface2); color:var(--text);
+      border-radius:999px; padding:.45rem .9rem; font-weight:700; cursor:pointer;
+      transition:transform .18s, background .18s, border-color .18s;
+    }
+    .btnToggle:hover, .btnSize:hover { background:var(--surface3); }
+    .btnToggle.active, .btnSize.active {
+      background:var(--primarySoft); border-color:var(--primary); color:var(--primary);
+    }
+    .meta code { font-family: 'IBM Plex Mono', 'Consolas', monospace; font-size:.82rem;
+      background:var(--surface3); padding:.1rem .35rem; border-radius:4px; }
+  
+  @keyframes popIn {
+    0%   { opacity:0; transform:scale(.93) translateY(4px); }
+    60%  { opacity:1; transform:scale(1.03) translateY(-1px); }
+    100% { opacity:1; transform:scale(1) translateY(0); }
+  }
+  .output-pop {
+    animation: popIn .35s cubic-bezier(.4,0,.2,1) both;
+  }
+</style>
+</head>
+<body>
+  <a href="#main" class="sr-only focus:not-sr-only">본문 바로가기</a>
+  <div class="app-bg">
+    <header class="max-w-7xl mx-auto px-4 md:px-8 pt-6 md:pt-10 pb-4">
+      <div class="card p-5 md:p-7">
+        <div class="flex flex-col lg:flex-row gap-4 lg:items-start lg:justify-between">
+          <div>
+            <p class="text-xs font-extrabold tracking-[0.2em] uppercase" style="color:var(--primary)">Data Structures · OOP Assignment 2</p>
+            <h1 class="panel-title text-3xl md:text-4xl mt-2">카페 메뉴 상속 구조와 실제 구현</h1>
+            <p class="mt-3 max-w-4xl" style="color:var(--muted)">과제 1의 <span class="font-bold">MenuADT → BaseMenu → CoffeeMenu / TeaMenu / DessertMenu</span> 상속 구조를 웹에서 시각화하고, <span class="font-bold">실제 구현</span> 영역에서 메뉴 선택 → 옵션 조정 → 장바구니 담기 → 결제까지 전체 주문 흐름을 직접 체험할 수 있습니다.</p>
+          </div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <button class="btn ghost" id="themeBtn">🌙 다크모드</button>
+            <button class="btn ghost" id="backToVisualBtn">상속 구조</button>
+          </div>
+        </div>
+        <div class="grid-3 mt-5">
+          <div class="result-box"><div class="font-bold">📐 UML 클래스 다이어그램</div><div class="mt-1 text-sm" style="color:var(--muted)">MenuADT → BaseMenu → CoffeeMenu · TeaMenu · DessertMenu 상속 구조를 계층형 노드로 시각화합니다. 노드를 클릭하면 각 클래스의 Fields · Behaviors 정보를 확인할 수 있습니다.</div></div>
+          <div class="result-box"><div class="font-bold">🔄 다형성 결과 패널</div><div class="mt-1 text-sm" style="color:var(--muted)">클래스 노드를 클릭하면 해당 클래스의 Fields · Behaviors와 describe() · calculate_price()의 기본 구조, 오버라이딩 방식, 실제 출력, 소스 코드를 확인할 수 있습니다.</div></div>
+          <div class="result-box"><div class="font-bold">🛒 주문 인터랙션</div><div class="mt-1 text-sm" style="color:var(--muted)">메뉴를 선택하고 온도 · 사이즈 · 추가 옵션을 설정한 뒤 장바구니에 담고 결제까지 이어지는 전체 주문 흐름을 직접 체험할 수 있습니다. 각 메뉴의 다형성 결과가 실시간으로 반영됩니다.</div></div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" class="max-w-7xl mx-auto px-4 md:px-8 pb-14 grid xl:grid-cols-[1.08fr_0.92fr] gap-6">
+      <section class="card p-5 md:p-7 xl:col-span-2">
+        <div id="actualArea" class="mt-8 card p-5 md:p-6 border border-[var(--border)]">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 class="panel-title text-2xl">실제 구현</h2>
+              <p class="text-sm mt-2" style="color:var(--muted)">주문하기 버튼을 눌러 메뉴 선택 → 옵션 설정 → 장바구니 → 결제 흐름을 체험할 수 있습니다.</p>
+            </div>
+            <div class="flex gap-2 items-center">
+              <button class="btn primary px-8 py-3 text-lg" id="openOrderBtn">주문하기</button>
+              <button class="btn ghost px-5 py-3 text-lg hidden" id="closeOrderBtn" title="닫기">✕ 닫기</button>
+            </div>
+          </div>
+
+          <div id="orderUI" class="hidden mt-6 space-y-6">
+            <div class="soft p-4 md:p-5">
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 class="panel-title text-xl">메뉴 목록</h3>
+                  <p class="text-sm mt-1" style="color:var(--muted)">메뉴를 선택하면 해당 클래스의 옵션 설정 화면이 열립니다.</p>
+                </div>
+                <div class="tabbar" id="categoryTabs"></div>
+              </div>
+              <div class="grid md:grid-cols-2 gap-3 mt-4" id="menuGrid"></div>
+            </div>
+
+            <div class="soft p-4 md:p-5 hidden" id="optionPanelWrap">
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 class="panel-title text-xl" id="optionPanelTitle">옵션 선택</h3>
+                  <p class="text-sm mt-1" id="optionPanelSubtitle" style="color:var(--muted)">메뉴를 선택하세요.</p>
+                </div>
+                <div class="chip" id="optionPanelBasePrice">기본 가격: -</div>
+              </div>
+              <div class="mt-4" id="optionList"></div>
+              <div class="mt-5 flex flex-wrap gap-2 justify-end">
+                <button class="btn" id="cancelOptionBtn">취소하기</button>
+                <button class="btn primary" id="addToCartBtn">담기</button>
+              </div>
+            </div>
+
+            <div class="soft p-4 md:p-5">
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 class="panel-title text-xl">현재 담은 주문</h3>
+                  <p class="text-sm mt-1" style="color:var(--muted)">선택한 옵션이 적용된 메뉴 항목과 calculate_price() 계산 결과가 표시됩니다.</p>
+                </div>
+                <span class="chip" id="cartCountChip">0개 담김</span>
+              </div>
+              <div class="mt-4 space-y-3" id="cartList"></div>
+              <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
+                <div class="text-lg font-black">총가격 <span id="cartTotal">0원</span></div>
+                <button class="btn primary px-6 py-3" id="finalOrderBtn">주문하기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card p-5 md:p-7">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 class="panel-title text-2xl">상속 구조 시각화</h2>
+            <p class="text-sm mt-2" style="color:var(--muted)">클래스 노드를 클릭하면 오른쪽 패널에 해당 클래스의 상세 정보와 오버라이딩 결과가 표시됩니다.</p>
+          </div>
+          <span class="chip">UML / ADT 계층 반영</span>
+        </div>
+        <div class="mt-6 grid place-items-center">
+          <button class="node w-full max-w-xl active" data-node="menuadt"><div class="flex justify-between items-center"><span class="chip">ADT</span><span class="text-xs font-bold" style="color:var(--muted)">Abstract</span></div><h3 class="font-black text-xl mt-3">MenuADT</h3><p class="text-sm mt-2" style="color:var(--muted)">카페 메뉴에 대한 ADT</p><p class="text-sm mt-3 font-mono">name / base_price / describe() / calculate_price()</p></button>
+          <div class="line"></div>
+          <button class="node w-full max-w-xl" data-node="basemenu"><div class="flex justify-between items-center"><span class="chip">Base Class</span><span class="text-xs font-bold" style="color:var(--muted)">공통 로직</span></div><h3 class="font-black text-xl mt-3">BaseMenu</h3><p class="text-sm mt-2" style="color:var(--muted)">공통 필드(이름·기본가격·아이스 여부·특별요청)와 기본 로직을 정의</p><p class="text-sm mt-3 font-mono">describe(): 아이스/핫 + 메뉴명 + 옵션</p></button>
+          <div class="line"></div>
+        </div>
+        <div class="grid md:grid-cols-3 gap-4 mt-2" style="align-items:stretch">
+          <button class="node" data-node="coffee" style="height:100%"><div class="flex justify-between items-center"><span class="chip coffee">Subclass</span><span class="text-xs font-bold" style="color:var(--coffee)">커피</span></div><h3 class="font-black text-xl mt-3">CoffeeMenu</h3><p class="text-sm mt-2" style="color:var(--muted)">_has_shot 필드 추가 — 휘핑크림 추가 여부를 출력과 가격에 반영</p><p class="text-sm mt-3 font-mono">has_shot · describe() · calculate_price()</p></button>
+          <button class="node" data-node="tea" style="height:100%"><div class="flex justify-between items-center"><span class="chip tea">Subclass</span><span class="text-xs font-bold" style="color:var(--tea)">티</span></div><h3 class="font-black text-xl mt-3">TeaMenu</h3><p class="text-sm mt-2" style="color:var(--muted)">_is_blend 필드 추가 — 블렌딩·꿀 추가 여부를 출력과 가격에 반영</p><p class="text-sm mt-3 font-mono">is_blend · describe() · calculate_price()</p></button>
+          <button class="node" data-node="dessert" style="height:100%"><div class="flex justify-between items-center"><span class="chip dessert">Subclass</span><span class="text-xs font-bold" style="color:var(--dessert)">디저트</span></div><h3 class="font-black text-xl mt-3">DessertMenu</h3><p class="text-sm mt-2" style="color:var(--muted)">_size 필드 추가 — 사이즈(Regular/Large)와 생크림 추가를 반영</p><p class="text-sm mt-3 font-mono">size · describe() · calculate_price()</p></button>
+        </div>
+
+        <!-- 인스턴스 레이어 -->
+        <div class="mt-4 flex flex-col items-center">
+          <div class="line" style="height:28px"></div>
+        </div>
+        <div class="mt-1 mb-2">
+          <div class="text-xs font-bold text-center mb-3" style="color:var(--muted);letter-spacing:.08em">▼ 실제 인스턴스 (Objects)</div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="instanceGrid" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div>
+        </div>
+
+      </section>
+
+      <aside class="flex flex-col gap-6">
+        <section class="card p-5 md:p-7">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 class="panel-title text-2xl">클래스 정보</h2>
+              <p class="text-sm mt-2" style="color:var(--muted)">클래스 노드 또는 실제 구현의 메뉴 항목을 클릭하면 다형성 출력 결과를 확인할 수 있습니다.</p>
+            </div>
+            <span class="chip" id="panelBadge">현재 보기: MenuADT</span>
+          </div>
+          <div class="mt-5 space-y-4">
+            <div class="result-box"><div class="font-bold">선택 대상</div><div class="mt-1 text-xl font-black" id="selectedTitle">MenuADT</div><div class="mt-2 text-sm" id="selectedSubtitle" style="color:var(--muted)">카페 메뉴에 대한 ADT</div></div>
+            <div id="polyBox" style="border:2px solid var(--primary);background:var(--primarySoft);border-radius:var(--radius2);padding:1rem">
+            <div class="flex items-center gap-2 mb-3 flex-wrap">
+              <div class="font-bold" style="color:var(--primary);font-size:1rem">🔄 다형성 출력 — 오버라이딩</div>
+              <span class="chip" id="overrideBadge" style="color:var(--primary);border-color:var(--primary)">추상 선언</span>
+            </div>
+            <p class="text-sm mb-3" id="overrideInfo" style="color:var(--muted)"></p>
+
+            <!-- describe() -->
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius1);padding:.85rem;margin-bottom:.7rem">
+              <div class="font-bold mb-2" style="color:var(--primary);font-size:.85rem">📝 describe()</div>
+              <div class="space-y-2">
+                <div>
+                  <div class="text-xs font-bold mb-1" style="color:var(--muted)">기본</div>
+                  <p class="text-sm font-mono" id="describeFormat" style="color:var(--text)"></p>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:.6rem">
+                  <div class="text-xs font-bold mb-1" style="color:var(--muted)">오버라이딩</div>
+                  <p class="text-sm" id="describeOverride" style="color:var(--text)"></p>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:.6rem">
+                  <div class="text-xs font-bold mb-2" style="color:var(--primary);font-size:.8rem;letter-spacing:.05em">출력</div>
+                  <p class="font-mono font-black" id="selectedDescribe" style="color:var(--primary);white-space:pre-line;font-size:1.05rem;background:var(--primarySoft);border:2px solid var(--primary);border-radius:10px;padding:.6rem .9rem;letter-spacing:.01em;"></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- calculate_price() -->
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius1);padding:.85rem">
+              <div class="font-bold mb-2" style="color:var(--primary);font-size:.85rem">💰 calculate_price()</div>
+              <div class="space-y-2">
+                <div>
+                  <div class="text-xs font-bold mb-1" style="color:var(--muted)">기본</div>
+                  <p class="text-sm font-mono" id="priceFormula" style="color:var(--text)"></p>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:.6rem">
+                  <div class="text-xs font-bold mb-1" style="color:var(--muted)">오버라이딩</div>
+                  <p class="text-sm" id="priceOverride" style="color:var(--text)"></p>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:.6rem">
+                  <div class="text-xs font-bold mb-2" style="color:var(--primary);font-size:.8rem;letter-spacing:.05em">출력</div>
+                  <p class="font-mono font-black" id="selectedPrice" style="color:var(--primary);white-space:pre-line;font-size:1.05rem;background:var(--primarySoft);border:2px solid var(--primary);border-radius:10px;padding:.6rem .9rem;letter-spacing:.01em;"></p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+            <div class="result-box"><div class="font-bold mb-2">핵심 정보</div><dl class="meta" id="selectedMeta"></dl></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <div id="checkoutModal" class="hidden fixed inset-0 z-50">
+      <div class="absolute inset-0 bg-black/50"></div>
+      <div class="relative max-w-3xl mx-auto mt-10 md:mt-16 px-4">
+        <div class="card p-5 md:p-7">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 class="panel-title text-2xl">주문 확인</h2>
+              <p class="text-sm mt-1" style="color:var(--muted)">메뉴 리스트와 총 가격을 확인한 뒤 결제할 수 있습니다.</p>
+            </div>
+            <button class="btn" id="closeCheckoutBtn">닫기</button>
+          </div>
+          <div class="mt-5 space-y-3" id="checkoutList"></div>
+          <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
+            <div class="text-xl font-black">총가격 <span id="checkoutTotal">0원</span></div>
+            <button class="btn primary px-6 py-3" id="payBtn">결제하기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+                    </div>
+        </section>
+      </aside>
+    </main>
+
+    <div id="checkoutModal" class="hidden fixed inset-0 z-50">
+      <div class="absolute inset-0 bg-black/50"></div>
+      <div class="relative max-w-3xl mx-auto mt-10 md:mt-16 px-4">
+        <div class="card p-5 md:p-7">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 class="panel-title text-2xl">주문 확인</h2>
+              <p class="text-sm mt-1" style="color:var(--muted)">메뉴 리스트와 총 가격을 확인한 뒤 결제할 수 있습니다.</p>
+            </div>
+            <button class="btn" id="closeCheckoutBtn">닫기</button>
+          </div>
+          <div class="mt-5 space-y-3" id="checkoutList"></div>
+          <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
+            <div class="text-xl font-black">총가격 <span id="checkoutTotal">0원</span></div>
+            <button class="btn primary px-6 py-3" id="payBtn">결제하기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+function highlightPython(code) {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let c = esc(code);
+  c = c.replace(/(#[^\n]*)/g, '<span style="color:var(--muted);font-style:italic">$1</span>');
+  c = c.replace(/(&quot;[^&]*?&quot;|&#x27;[^&]*?&#x27;)/g, '<span style="color:var(--coffee)">$1</span>');
+  const kw = ['def','class','return','if','else','not','and','or','pass','from','import','super','for','in','True','False','None'];
+  kw.forEach(k => {
+    c = c.replace(new RegExp('\\b(' + k + ')\\b', 'g'), '<span style="color:var(--primary);font-weight:700">$1</span>');
+  });
+  c = c.replace(/\b(self)\b/g, '<span style="color:var(--tea)">$1</span>');
+  c = c.replace(/(@\w+)/g, '<span style="color:var(--dessert)">$1</span>');
+  return c;
+}
+class MenuADT { get name(){throw new Error()} get base_price(){throw new Error()} describe(){throw new Error()} calculate_price(){throw new Error()} }
+class BaseMenu extends MenuADT {
+  constructor(name, base_price, is_iced=false, special_request=false){ super(); this._name=name; this.__base_price=base_price; this._is_iced=is_iced; this._special_request=special_request; }
+  get name(){ return this._name } get base_price(){ return this.__base_price } get is_iced(){ return this._is_iced } get special_request(){ return this._special_request }
+  describe(){ const temp=this._is_iced ? '아이스 ' : '핫 '; const option=this._special_request ? '(옵션 추가)' : '(기본)'; return `${temp}${this._name}${option}` }
+  calculate_price(){ const iced_extra=this._is_iced ? 500 : 0; const special_extra=0; return this.__base_price + iced_extra + special_extra }
+}
+class CoffeeMenu extends BaseMenu {
+  constructor(name, base_price, is_iced=false, has_shot=true, special_request=false){ super(name, base_price, is_iced, special_request); this._has_shot=has_shot }
+  get has_shot(){ return this._has_shot }
+  describe(){ const temp=this.is_iced ? '아이스 ' : '핫 '; const options=[]; if(this.special_request) options.push('휘핑크림 추가'); if(!options.length) options.push('기본'); return `${temp}${this._name}${options.map(o=>`(${o})`).join('')}` }
+  calculate_price(){ let price=super.calculate_price(); const shots=this._shot_count||1; price += (shots-1)*300; if(this.special_request) price += 500; return price }
+}
+class TeaMenu extends BaseMenu {
+  constructor(name, base_price, is_iced=false, is_blend=false, special_request=false){ super(name, base_price, is_iced, special_request); this._is_blend=is_blend }
+  get is_blend(){ return this._is_blend }
+  describe(){ const temp=this.is_iced ? '아이스 ' : '핫 '; const options=[]; if(this._is_blend) options.push('블렌딩'); if(this.special_request) options.push('꿀 추가'); if(!options.length) options.push('기본'); return `${temp}${this._name}${options.map(o=>`(${o})`).join('')}` }
+  calculate_price(){ let price=super.calculate_price(); if(this._is_blend) price += 700; if(this.special_request) price += 300; return price }
+}
+class DessertMenu extends BaseMenu {
+  constructor(name, base_price, size='regular', special_request=false){ super(name, base_price, false, special_request); this._size=size }
+  get size(){ return this._size }
+  describe(){ const options=[]; if(this._size==='large') options.push('대'); if(this.special_request) options.push('생크림 추가'); if(!options.length) options.push('기본'); return `${this._name}${options.map(o=>`(${o})`).join('')}` }
+  calculate_price(){ let price=super.calculate_price(); if(this._size==='large') price += 2000; if(this.special_request) price += 500; return price }
+}
+
+const classInfo={
+  menuadt:{
+    title:'MenuADT', badge:'현재 보기: MenuADT', subtitle:'카페 메뉴에 대한 ADT (추상 클래스)',
+    overrideBadge:'추상 선언',
+    overrideInfo:'describe()와 calculate_price()를 추상 메서드로 선언합니다. 하위 클래스가 반드시 구현해야 하는 공통 인터페이스 역할만 하며, 직접 인스턴스화할 수 없습니다.',
+    meta:{
+      'Fields':'<code>+ name : str</code><br><code>+ base_price : int</code>',
+      'Behaviors':'<code>+ describe() : str</code><br><code>+ calculate_price() : int</code>',
+      '특징':'직접 인스턴스화 불가 · 모든 하위 클래스가 Behaviors 구현 강제'
+    },
+    describe:'[ 추상 메서드 ]',
+    price:'[ 추상 메서드 ]',
+    describeCode:"# menu_ADT.py\nfrom abc import ABC, abstractmethod\n\nclass MenuADT(ABC):\n    @abstractmethod\n    def describe(self) -> str:\n        \"\"\"메뉴 설명 추상 메서드\"\"\"\n        pass",
+    priceCode:"# menu_ADT.py\nfrom abc import ABC, abstractmethod\n\nclass MenuADT(ABC):\n    @abstractmethod\n    def calculate_price(self) -> int:\n        \"\"\"최종 가격 계산 추상 메서드\"\"\"\n        pass"
+  },
+  basemenu:{
+    title:'BaseMenu', badge:'현재 보기: BaseMenu', subtitle:'MenuADT 구현체 (1차 오버라이딩)',
+    overrideBadge:'1차 오버라이딩',
+    overrideInfo:'MenuADT의 추상 메서드를 처음으로 구현합니다. describe()는 핫/아이스 접두어 + 메뉴명 + 옵션 형식으로 정의되고, calculate_price()는 기본가격 + 아이스(+500원) 로직이 추가됩니다.',
+    describeFormat:'추상 메서드 — 선언만 존재, 구현 없음 (MenuADT)',
+    describeOverride:'핫/아이스 접두어 + 메뉴명 + (옵션 추가) 또는 (기본) 형태로 처음 구현됨. 모든 하위 클래스의 기본 출력 구조를 정의함.',
+    priceFormula:'추상 메서드 — 선언만 존재, 구현 없음 (MenuADT)',
+    priceOverride:'기본가격 + 아이스(+500원) 로직으로 처음 구현됨. 하위 클래스들이 이 결과에 추가 요금을 더함.',
+    meta:{
+      'Fields':'<code># _name : str</code><br><code>- __base_price : int</code><br><code># _is_iced : bool</code><br><code># _special_request : bool</code>',
+      'Behaviors':'<code>+ name() : str</code><br><code>+ base_price() : int</code><br><code>+ is_iced() : bool</code><br><code>+ special_request() : bool</code><br><code>+ describe() : str</code><br><code>+ calculate_price() : int</code>',
+      'describe() ▶ 구현':'핫/아이스 접두어 + 메뉴명 + (옵션 추가)/(기본)',
+      'calculate_price() ▶ 구현':'기본가격 + 아이스(+500원)'
+    },
+    describe:'핫 아메리카노(옵션 추가)',
+    price:'0원',
+    describeCode:"# base_menu.py  ← MenuADT 추상 메서드 처음 구현\nclass BaseMenu(MenuADT):\n    def describe(self) -> str:\n        temp = \"아이스 \" if self._is_iced else \"핫 \"\n        option = \"(옵션 추가)\" if self._special_request \\\n                 else \"(기본)\"\n        return f\"{temp}{self._name}{option}\"",
+    priceCode:"# base_menu.py  ← MenuADT 추상 메서드 처음 구현\nclass BaseMenu(MenuADT):\n    def calculate_price(self) -> int:\n        iced_extra = 500 if self._is_iced else 0\n        special_extra = 0\n        return self.__base_price + iced_extra + special_extra"
+  },
+
+  coffee:{
+    title:'CoffeeMenu', badge:'현재 보기: CoffeeMenu', subtitle:'BaseMenu 상속 (2차 오버라이딩)',
+    overrideBadge:'2차 오버라이딩',
+    overrideInfo:'BaseMenu의 describe()·calculate_price()를 다시 오버라이딩합니다. _has_shot(샷 유무) 필드가 추가되어, 휘핑크림 추가 여부가 출력에 반영되고 샷 수에 따라 가격이 달라집니다.',
+    describeFormat:'BaseMenu: 핫/아이스 + 메뉴명 + (옵션 추가)/(기본)',
+    describeOverride:'(옵션 추가)/(기본) → 휘핑크림 추가 시 (휘핑크림 추가)로 세분화됨. 옵션 없으면 (기본) 유지.',
+    priceFormula:'BaseMenu: 기본가격 + 아이스(+500원)',
+    priceOverride:'BaseMenu 결과에 추가: 샷 1개 기본 포함, 추가 샷(+300원/개), 휘핑크림(+500원) 더해짐.',
+    meta:{
+      '추가 Fields':'<code># _has_shot : bool</code>',
+      'Behaviors':'<code>+ has_shot() : bool</code><br><code>+ describe() : str</code><br><code>+ calculate_price() : int</code>',
+      'describe() ▶ 변경점':'BaseMenu 대비: (휘핑크림 추가) 옵션 추가',
+      'calculate_price() ▶ 변경점':'BaseMenu 대비: 샷 1개 기본 포함, 추가 샷(+300원/개), 휘핑크림(+500원) 추가'
+    },
+    describe:'핫 아메리카노(기본)',
+    describeOptions:['핫 아메리카노(기본)','아이스 아메리카노(기본)','핫 라떼(기본)','아이스 라떼(휘핑크림 추가)','핫 카푸치노(기본)','핫 카푸치노(샷 추가)(샷 추가)'],
+    price:'3,000원',
+    priceOptions:['3,000원','3,500원','4,000원','5,300원','4,200원','4,800원'],
+    describeCode:"# coffee_menu.py  ← BaseMenu.describe() 오버라이딩\nclass CoffeeMenu(BaseMenu):\n    def describe(self) -> str:\n        temp = \"아이스 \" if self.is_iced else \"핫 \"\n        options = []\n        if self.special_request:\n            options.append(\"휘핑크림 추가\")  # 특별 요청 시 추가\n        if not options:\n            options.append(\"기본\")\n        option_str = \"\".join(f\"({o})\" for o in options)\n        return f\"{temp}{self._name}{option_str}\"",
+    priceCode:"# coffee_menu.py  ← BaseMenu.calculate_price() 오버라이딩\nclass CoffeeMenu(BaseMenu):\n    def calculate_price(self) -> int:\n        price = super().calculate_price()  # BaseMenu 결과 상속\n        if self._has_shot:\n            price += 300   # 샷 추가 +300원\n        if self.special_request:\n            price += 500   # 휘핑크림 +500원\n        return price"
+  },
+
+  tea:{
+    title:'TeaMenu', badge:'현재 보기: TeaMenu', subtitle:'BaseMenu 상속 (2차 오버라이딩)',
+    overrideBadge:'2차 오버라이딩',
+    overrideInfo:'BaseMenu의 describe()·calculate_price()를 오버라이딩합니다. _is_blend(블렌딩 여부) 필드가 추가되어, 블렌딩·꿀 추가 옵션이 describe()에 반영되고 해당 금액이 calculate_price()에 더해집니다.',
+    describeFormat:'BaseMenu: 핫/아이스 + 메뉴명 + (옵션 추가)/(기본)',
+    describeOverride:'(옵션 추가)/(기본) → 블렌딩 선택 시 (블렌딩), 꿀 추가 시 (꿀 추가)로 각각 독립 표시됨.',
+    priceFormula:'BaseMenu: 기본가격 + 아이스(+500원)',
+    priceOverride:'BaseMenu 결과에 추가: 블렌딩(+700원), 꿀 추가(+300원) 더해짐.',
+    meta:{
+      '추가 Fields':'<code># _is_blend : bool</code>',
+      'Behaviors':'<code>+ is_blend() : bool</code><br><code>+ describe() : str</code><br><code>+ calculate_price() : int</code>',
+      'describe() ▶ 변경점':'BaseMenu 대비: (블렌딩) / (꿀 추가) 옵션 추가',
+      'calculate_price() ▶ 변경점':'BaseMenu 대비: 블렌딩(+700원), 꿀 추가(+300원) 추가'
+    },
+    describe:'핫 캐모마일(기본)',
+    describeOptions:['핫 캐모마일(기본)','아이스 캐모마일(기본)','핫 시그니처 티(기본)','아이스 시그니처 티(블렌딩)(꿀 추가)','핫 녹차(기본)','아이스 녹차(꿀 추가)'],
+    price:'3,500원',
+    priceOptions:['3,500원','4,000원','3,800원','5,300원','3,300원','4,100원'],
+    describeCode:"# tea_menu.py  ← BaseMenu.describe() 오버라이딩\nclass TeaMenu(BaseMenu):\n    def describe(self) -> str:\n        temp = \"아이스 \" if self.is_iced else \"핫 \"\n        options = []\n        if self._is_blend:\n            options.append(\"블렌딩\")   # 블렌딩 선택 시 추가\n        if self.special_request:\n            options.append(\"꿀 추가\")   # 특별 요청 시 추가\n        if not options:\n            options.append(\"기본\")\n        option_str = \"\".join(f\"({o})\" for o in options)\n        return f\"{temp}{self._name}{option_str}\"",
+    priceCode:"# tea_menu.py  ← BaseMenu.calculate_price() 오버라이딩\nclass TeaMenu(BaseMenu):\n    def calculate_price(self) -> int:\n        price = super().calculate_price()  # BaseMenu 결과 상속\n        if self._is_blend:\n            price += 700   # 블렌딩 +700원\n        if self.special_request:\n            price += 300   # 꿀 추가 +300원\n        return price"
+  },
+
+  dessert:{
+    title:'DessertMenu', badge:'현재 보기: DessertMenu', subtitle:'BaseMenu 상속 (2차 오버라이딩)',
+    overrideBadge:'2차 오버라이딩',
+    overrideInfo:'BaseMenu의 describe()·calculate_price()를 오버라이딩합니다. is_iced=False로 고정되어 온도 접두어가 제거되고, _size(사이즈) 필드가 추가되어 Large 선택 시 가격이 달라집니다.',
+    describeFormat:'BaseMenu: 핫/아이스 + 메뉴명 + (옵션 추가)/(기본)',
+    describeOverride:'온도 접두어 완전 제거됨. 메뉴명 + Large 선택 시 (대), 생크림 추가 시 (생크림 추가) 형태로 변경됨.',
+    priceFormula:'BaseMenu: 기본가격 + 아이스(+500원)',
+    priceOverride:'is_iced=False 고정으로 아이스 요금 없음. Large(+2,000원), 생크림(+500원) 더해짐.',
+    meta:{
+      '추가 Fields':'<code># _size : str</code>',
+      'Behaviors':'<code>+ size() : str</code><br><code>+ describe() : str</code><br><code>+ calculate_price() : int</code>',
+      'describe() ▶ 변경점':'BaseMenu 대비: 온도 접두어 제거, (대) / (생크림 추가) 옵션으로 교체',
+      'calculate_price() ▶ 변경점':'BaseMenu 대비: Large(+2,000원), 생크림(+500원) 추가'
+    },
+    describe:'치즈케이크(기본)',
+    describeOptions:['치즈케이크(기본)','치즈케이크(대)(생크림 추가)','브라우니(기본)','브라우니(대)(생크림 추가)'],
+    price:'4,500원',
+    priceOptions:['4,500원','7,000원','6,000원','8,500원'],
+    describeCode:"# dessert_menu.py  ← BaseMenu.describe() 오버라이딩\nclass DessertMenu(BaseMenu):\n    def describe(self) -> str:\n        # is_iced=False 고정 → 온도 접두어 없음\n        options = []\n        if self._size == \"large\":\n            options.append(\"대\")   # Large 사이즈 시 추가\n        if self.special_request:\n            options.append(\"생크림 추가\")  # 특별 요청 시 추가\n        if not options:\n            options.append(\"기본\")\n        option_str = \"\".join(f\"({o})\" for o in options)\n        return f\"{self._name}{option_str}\"",
+    priceCode:"# dessert_menu.py  ← BaseMenu.calculate_price() 오버라이딩\nclass DessertMenu(BaseMenu):\n    def calculate_price(self) -> int:\n        price = super().calculate_price()  # BaseMenu 결과 상속\n        # is_iced=False 고정이므로 아이스 요금 없음\n        if self._size == \"large\":\n            price += 2000  # Large 사이즈 +2,000원\n        if self.special_request:\n            price += 500   # 생크림 +500원\n        return price"
+  }
+};
+
+
+function createMenus(){
+  // 기본 인스턴스
+  const m1 = new CoffeeMenu('아메리카노',3000,false,true,false);
+  const m2 = new CoffeeMenu('라떼',4000,false,true,false);
+  const m3 = new TeaMenu('캐모마일',3500,false,false,false);
+  const m4 = new TeaMenu('시그니처 티',3800,false,false,false);
+  const m5 = new CoffeeMenu('카푸치노',4200,false,true,false);
+  const m6 = new TeaMenu('녹차',3300,false,false,false);
+  const m7 = new DessertMenu('치즈케이크',4500,'regular',false);
+  const m8 = new DessertMenu('브라우니',6000,'regular',false);
+
+  // 옵션 반영 인스턴스 (오버라이딩 결과 비교용)
+  const m1v = new CoffeeMenu('아메리카노',3000,true,true,false);   // 아이스 + 샷2개
+  m1v._shot_count = 2;
+  const m2v = new CoffeeMenu('라떼',4000,false,true,true);          // 휘핑크림 추가
+  m2v._whip_count = 1;
+  const m3v = new TeaMenu('캐모마일',3500,true,false,false);        // 아이스
+  const m4v = new TeaMenu('시그니처 티',3800,false,true,false);     // 블렌딩
+  m4v._blend_count = 1;
+  const m5v = new CoffeeMenu('카푸치노',4200,false,true,false);     // 샷 3개
+  m5v._shot_count = 3;
+  const m6v = new TeaMenu('녹차',3300,false,false,true);            // 꿀 추가
+  m6v._honey_count = 1;
+  const m7v = new DessertMenu('치즈케이크',4500,'large',false);     // Large
+  const m8v = new DessertMenu('브라우니',6000,'regular',true);      // 생크림 추가
+  m8v._cream_count = 1;
+
+  return [m1,m2,m3,m4,m5,m6,m7,m8, m1v,m2v,m3v,m4v,m5v,m6v,m7v,m8v];
+}
+const menus = createMenus();
+const labels = ['m1','m2','m3','m4','m5','m6','m7','m8','m1+','m2+','m3+','m4+','m5+','m6+','m7+','m8+'];
+const cart = [];
+let selectedClass = 'menuadt';
+let selectedMenu = null;
+let currentCategory = 'all';
+let tempOptionState = null;
+
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+const selectedTitle = $('#selectedTitle');
+const selectedSubtitle = $('#selectedSubtitle');
+const selectedMeta = $('#selectedMeta');
+const selectedDescribe = $('#selectedDescribe');
+const selectedPrice = $('#selectedPrice');
+const panelBadge = $('#panelBadge');
+const menuGrid = $('#menuGrid');
+const optionPanelWrap = $('#optionPanelWrap');
+const optionPanelTitle = $('#optionPanelTitle');
+const optionPanelSubtitle = $('#optionPanelSubtitle');
+const optionPanelBasePrice = $('#optionPanelBasePrice');
+const optionList = $('#optionList');
+const cartList = $('#cartList');
+const cartTotal = $('#cartTotal');
+const cartCountChip = $('#cartCountChip');
+const categoryTabs = $('#categoryTabs');
+const orderUI = $('#orderUI');
+const checkoutModal = $('#checkoutModal');
+const checkoutList = $('#checkoutList');
+const checkoutTotal = $('#checkoutTotal');
+
+function money(n){ return `${n}원`; }
+function detectType(menu){ if(menu instanceof CoffeeMenu) return 'CoffeeMenu'; if(menu instanceof TeaMenu) return 'TeaMenu'; if(menu instanceof DessertMenu) return 'DessertMenu'; return 'BaseMenu'; }
+function renderMeta(meta){ selectedMeta.innerHTML = Object.entries(meta).map(([k,v]) => `<dt>${k}</dt><dd style="line-height:1.8">${v}</dd>`).join(''); }
+function selectClassNode(id, doScroll=true){
+  selectedClass = id;
+  const info = classInfo[id];
+  $$('.node').forEach(x => x.classList.toggle('active', x.dataset.node === id));
+  $$('.instance').forEach(x => x.classList.remove('active'));
+  selectedMenu = null;
+  optionPanelWrap.classList.add('hidden');
+  selectedTitle.textContent  = info.title;
+  selectedSubtitle.textContent = info.subtitle;
+  const subclasses = ['coffee','tea','dessert'];
+  const isSubclass = subclasses.includes(id);
+  const rand = arr => arr[Math.floor(Math.random() * arr.length)];
+  const describeVal = isSubclass && info.describeOptions ? rand(info.describeOptions) : info.describe;
+  const priceVal    = isSubclass && info.priceOptions    ? rand(info.priceOptions)    : info.price;
+  // 애니메이션 리셋 후 값 적용
+  [selectedDescribe, selectedPrice].forEach(el => {
+    el.classList.remove('output-pop');
+    void el.offsetWidth; // reflow
+    el.classList.add('output-pop');
+  });
+  selectedDescribe.textContent = describeVal;
+  selectedPrice.textContent    = priceVal;
+  panelBadge.textContent     = info.badge;
+  renderMeta(info.meta);
+  const ob = document.getElementById('overrideBadge');
+  const oi = document.getElementById('overrideInfo');
+  if(ob) ob.textContent = info.overrideBadge || '';
+  if(oi) oi.textContent = info.overrideInfo  || '';
+  const setEl = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val || ''; };
+  setEl('describeFormat',   info.describeFormat);
+  setEl('describeOverride', info.describeOverride);
+  setEl('priceFormula',     info.priceFormula);
+  setEl('priceOverride',    info.priceOverride);
+  const dcEl = document.getElementById('describeCode'); if(dcEl) dcEl.innerHTML = highlightPython(info.describeCode||'');
+  const pcEl = document.getElementById('priceCode'); if(pcEl) pcEl.innerHTML = highlightPython(info.priceCode||'');
+  if(doScroll){ const polyB = document.getElementById('polyBox'); if(polyB) polyB.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+}
+function renderClassInfoByMenu(menu, index){
+  selectedClass = null;
+  $$('.node').forEach(x=>x.classList.remove('active'));
+  $$('.instance').forEach((x,i)=>x.classList.toggle('active', i===index));
+  const type = detectType(menu);
+  const typeKey = type==='CoffeeMenu'?'coffee':type==='TeaMenu'?'tea':type==='DessertMenu'?'dessert':'basemenu';
+  const info = classInfo[typeKey];
+  selectedTitle.textContent    = `${labels[index]} (${type})`;
+  selectedSubtitle.textContent = '실제 인스턴스 — 오버라이딩된 메서드 호출 결과';
+  panelBadge.textContent       = `현재 보기: ${labels[index]}`;
+  renderMeta(getInstanceMeta(menu, index));
+  [selectedDescribe, selectedPrice].forEach(el => {
+    el.classList.remove('output-pop');
+    void el.offsetWidth;
+    el.classList.add('output-pop');
+  });
+  selectedDescribe.textContent = menu.describe();
+  selectedPrice.textContent    = `${money(menu.calculate_price())}`;
+  const ob = document.getElementById('overrideBadge');
+  const oi = document.getElementById('overrideInfo');
+  if(ob) ob.textContent = info ? info.overrideBadge : '';
+  if(oi) oi.textContent = info ? `[${labels[index]}] ${menu.describe()} → ${money(menu.calculate_price())}` : '';
+  const dcEl3 = document.getElementById('describeCode'); if(dcEl3) dcEl3.innerHTML = info ? highlightPython(info.describeCode||'') : '';
+  const pcEl3 = document.getElementById('priceCode'); if(pcEl3) pcEl3.innerHTML = info ? highlightPython(info.priceCode||'') : '';
+}
+function getInstanceMeta(menu, index){ const meta={ '인스턴스': labels[index], '클래스': detectType(menu), 'name': menu.name, 'base_price': money(menu.base_price) }; if(menu instanceof CoffeeMenu){ meta.is_iced = String(menu.is_iced); meta.has_shot = String(menu.has_shot); meta.special_request = String(menu.special_request); } else if(menu instanceof TeaMenu){ meta.is_iced = String(menu.is_iced); meta.is_blend = String(menu.is_blend); meta.special_request = String(menu.special_request); } else if(menu instanceof DessertMenu){ meta.size = menu.size; meta.special_request = String(menu.special_request); } return meta; }
+function renderInstances(){
+  const wrap = $('#instanceGrid');
+  if(!wrap) return;
+
+  const baseMenus  = menus.slice(0,8);
+  const optMenus   = menus.slice(8);
+
+  function cardHTML(m, i, isOpt){
+    const type = detectType(m);
+    const chipClass = type==='CoffeeMenu'?'coffee':type==='TeaMenu'?'tea':'dessert';
+    const emoji = type==='CoffeeMenu'?'☕':type==='TeaMenu'?'🍵':'🍰';
+    const borderStyle = isOpt ? 'border-color:var(--primary);' : '';
+    const badgeExtra = isOpt ? `<span style="font-size:.65rem;color:var(--primary);font-weight:700;margin-left:2px">✦옵션</span>` : '';
+    let diffHTML = '';
+    if(isOpt){
+      const base = baseMenus[i-8];
+      const basePr = base.calculate_price();
+      const optPr  = m.calculate_price();
+      const diff   = optPr - basePr;
+      const diffStr = diff > 0 ? `<span style="color:var(--warn);font-weight:700">+${money(diff)}</span>` : '';
+      const baseDesc = base.describe();
+      diffHTML = `<div class="text-xs mt-1" style="color:var(--muted)">기본: <span style="text-decoration:line-through">${baseDesc}</span></div>
+        <div class="text-xs" style="color:var(--primary);font-weight:700">→ ${m.describe()}</div>
+        ${diffStr ? `<div class="text-xs mt-1">${diffStr} (기본 대비)</div>` : ''}`;
+    } else {
+      diffHTML = `<div class="text-xs mt-1" style="color:var(--muted)">${m.describe()}</div>`;
+    }
+    return `<button class="instance node text-left" data-instance-index="${i}" style="min-height:auto;padding:.75rem;${borderStyle}">
+      <div class="flex justify-between items-center flex-wrap gap-1">
+        <span class="chip ${chipClass}" style="font-size:.7rem">${labels[i]}${badgeExtra}</span>
+        <span style="font-size:1.1rem">${emoji}</span>
+      </div>
+      <div class="font-black mt-2" style="font-size:.92rem">${m.name}</div>
+      <div class="text-xs mt-1 font-mono" style="color:var(--primary);font-weight:700">${money(m.calculate_price())}</div>
+      ${diffHTML}
+    </button>`;
+  }
+
+  wrap.innerHTML = `
+    <div style="grid-column:1/-1;font-size:.75rem;font-weight:700;margin-top:.25rem;margin-bottom:.25rem;color:var(--muted)">📦 기본 인스턴스</div>
+    ${baseMenus.map((m,i) => cardHTML(m,i,false)).join('')}
+    <div style="grid-column:1/-1;font-size:.75rem;font-weight:700;margin-top:.75rem;margin-bottom:.25rem;color:var(--primary)">✦ 옵션 적용 인스턴스 — 오버라이딩 결과 비교</div>
+    ${optMenus.map((m,i) => cardHTML(m,i+8,true)).join('')}
+  `;
+
+  $$('.instance').forEach((btn, i) => {
+    btn.addEventListener('click', () => {
+      renderClassInfoByMenu(menus[i], i);
+      const polyB = document.getElementById('polyBox');
+      if(polyB) polyB.scrollIntoView({behavior:'smooth', block:'nearest'});
+    });
+  });
+}
+function menuDescription(menu){
+  if(menu instanceof CoffeeMenu) return '샷 추가 / 휘핑크림 추가 / 핫·아이스 선택 가능';
+  if(menu instanceof TeaMenu)    return '꿀 추가 / 블렌딩 / 핫·아이스 선택 가능';
+  if(menu instanceof DessertMenu) return '사이즈 선택(Regular·Large) / 생크림 추가 가능';
+  return '';
+}
+const menuDesc = {
+  '아메리카노': '깔끔하고 진한 에스프레소의 풍미를 그대로 담은 클래식 아메리카노입니다.',
+  '라떼': '부드러운 우유 거품과 에스프레소가 조화롭게 어우러진 라떼입니다.',
+  '카푸치노': '풍성한 우유 거품과 진한 에스프레소의 균형이 돋보이는 카푸치노입니다.',
+  '캐모마일': '은은한 꽃향기와 함께 몸과 마음을 편안하게 해주는 캐모마일 티입니다.',
+  '시그니처 티': '엄선된 찻잎을 블렌딩한 카페만의 시그니처 티입니다.',
+  '녹차': '신선한 녹찻잎의 청량한 향과 깔끔한 뒷맛이 특징인 그린티입니다.',
+  '치즈케이크': '진한 크림치즈와 바삭한 크러스트가 어우러진 뉴욕 스타일 치즈케이크입니다.',
+  '브라우니': '촉촉하고 깊은 초콜릿 풍미가 살아있는 수제 브라우니입니다.',
+};
+function renderMenuGrid(){ const visible = menus.slice(0,8).map((m,i)=>({m,i})).filter(({m})=>{ if(currentCategory==='all') return true; if(currentCategory==='coffee') return m instanceof CoffeeMenu; if(currentCategory==='tea') return m instanceof TeaMenu; if(currentCategory==='dessert') return m instanceof DessertMenu; return true; }); menuGrid.innerHTML = visible.map(({m,i}) => { const type = detectType(m); const chipClass = type==='CoffeeMenu'?'coffee':type==='TeaMenu'?'tea':'dessert'; const desc = menuDesc[m.name] || ''; return `<button class="menu-card text-left" data-menu-index="${i}"><div class="flex justify-between items-center gap-2"><span class="chip ${chipClass}">${type}</span><span class="font-black">${money(m.base_price)}</span></div><h4 class="text-lg font-black">${m.name}</h4><p class="text-sm font-bold" style="color:var(--primary)">${menuDescription(m)}</p><p class="text-sm mt-1" style="color:var(--muted)">${desc}</p></button>`; }).join(''); $$('.menu-card').forEach(btn => btn.addEventListener('click', ()=>openOptionPanel(Number(btn.dataset.menuIndex)))); }
+function renderTabs(){ const tabs = [ ['all','전체'], ['coffee','커피'], ['tea','티'], ['dessert','디저트'] ]; categoryTabs.innerHTML = tabs.map(([k,l]) => `<button class="btn ${currentCategory===k?'active':''}" data-cat="${k}">${l}</button>`).join(''); $$('#categoryTabs .btn').forEach(b=>b.addEventListener('click',()=>{ currentCategory = b.dataset.cat; renderTabs(); renderMenuGrid(); })); }
+function openOptionPanel(index){ selectedMenu = menus[index]; optionPanelWrap.classList.remove('hidden'); optionPanelTitle.textContent = `${selectedMenu.name} 옵션 선택`; optionPanelSubtitle.textContent = menuDescription(selectedMenu); optionPanelBasePrice.textContent = `기본 가격: ${money(selectedMenu.base_price)}`; tempOptionState = getDefaultState(selectedMenu); renderOptionList(); optionPanelWrap.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+function getDefaultState(menu){
+  if(menu instanceof CoffeeMenu) return { hotCold:'hot', shot:1, whip:0 };
+  if(menu instanceof TeaMenu)    return { hotCold:'hot', honey:0, blend:0 };
+  if(menu instanceof DessertMenu) return { size:'regular', cream:0 };
+  return {};
+}
+
+function renderOptionList(){
+  if(!selectedMenu || !tempOptionState) return;
+  const rows = [];
+  const isIce = tempOptionState.hotCold === 'ice';
+
+  const pushHotCold = () => rows.push({key:'hotCold', type:'toggle_hotcold', title:'온도', desc:'', value: tempOptionState.hotCold});
+  const pushSize    = () => rows.push({key:'size',    type:'toggle_size',    title:'사이즈', desc:'', value: tempOptionState.size});
+  const push = (key,title,desc,price) => rows.push({key,type:'qty',title,desc,price,value:tempOptionState[key]||0});
+
+  if(selectedMenu instanceof CoffeeMenu){
+    pushHotCold();
+    push('shot','샷 추가','1개 기본 포함 · 2개부터 +300원/개','+300원/개');
+    push('whip','휘핑크림 추가','휘핑크림을 올립니다.','+500원/개');
+  } else if(selectedMenu instanceof TeaMenu){
+    pushHotCold();
+    push('honey','꿀 추가','달콤함을 더하는 꿀 옵션','+300원/개');
+    push('blend','블렌딩','차의 향을 더 진하게 섞습니다','+700원/개');
+  } else if(selectedMenu instanceof DessertMenu){
+    pushSize();
+    push('cream','생크림 추가','디저트 위에 생크림을 올립니다','+500원/개');
+  }
+
+  optionList.innerHTML = rows.map(r => {
+    if(r.type==='toggle_hotcold'){
+      const hotA = r.value==='hot'  ? ' active':'';
+      const iceA = r.value==='ice'  ? ' active':'';
+      return `<div class="opt-row" style="align-items:flex-start">
+        <div><div class="opt-title">${r.title}</div></div>
+        <div style="display:flex;flex-direction:column;gap:.45rem;align-items:flex-end">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+            <span style="font-size:.9rem;font-weight:700">핫</span>
+            <button class="btnToggle${hotA}" data-choice="hot" style="min-width:64px">핫</button>
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+            <span style="font-size:.9rem;font-weight:700">아이스 <span style="color:var(--primary);font-size:.8rem">(+500원)</span></span>
+            <button class="btnToggle${iceA}" data-choice="ice" style="min-width:64px">아이스</button>
+          </label>
+        </div>
+      </div>`;
+    }
+    if(r.type==='toggle_size'){
+      const regA = r.value==='regular' ? ' active':'';
+      const lgA  = r.value==='large'   ? ' active':'';
+      return `<div class="opt-row" style="align-items:flex-start">
+        <div><div class="opt-title">${r.title}</div></div>
+        <div style="display:flex;flex-direction:column;gap:.45rem;align-items:flex-end">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+            <span style="font-size:.9rem;font-weight:700">Regular <span style="color:var(--muted);font-size:.8rem">(기본)</span></span>
+            <button class="btnSize${regA}" data-size="regular" style="min-width:80px">Regular</button>
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+            <span style="font-size:.9rem;font-weight:700">Large <span style="color:var(--primary);font-size:.8rem">(+2,000원)</span></span>
+            <button class="btnSize${lgA}" data-size="large" style="min-width:80px">Large</button>
+          </label>
+        </div>
+      </div>`;
+    }
+    return `<div class="opt-row">
+      <div><div class="opt-title">${r.title}</div><div class="opt-desc">${r.desc}</div></div>
+      <div class="flex items-center gap-3 justify-end">
+        <div class="price">${r.price}</div>
+        <div class="qty">
+          <button data-minus="${r.key}">-</button>
+          <span>${r.value}</span>
+          <button data-plus="${r.key}">+</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  $$('.btnToggle').forEach(btn=>btn.addEventListener('click', ()=>{
+    tempOptionState.hotCold = btn.dataset.choice;
+    renderOptionList();
+  }));
+  $$('.btnSize').forEach(btn=>btn.addEventListener('click', ()=>{
+    tempOptionState.size = btn.dataset.size;
+    renderOptionList();
+  }));
+  $$('[data-plus]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const k=btn.dataset.plus; tempOptionState[k]=(tempOptionState[k]||0)+1; renderOptionList();
+  }));
+  $$('[data-minus]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const k=btn.dataset.minus;
+    const minVal = k==='shot' ? 1 : 0;
+    tempOptionState[k]=Math.max(minVal,(tempOptionState[k]||0)-1); renderOptionList();
+  }));
+}
+
+function buildTempOrder(menu,state){
+  const clone = JSON.parse(JSON.stringify(state));
+  let item = null;
+  if(menu instanceof CoffeeMenu){
+    const iced    = clone.hotCold === 'ice';
+    const special = (clone.whip||0) > 0;
+    const shotCount = clone.shot || 1;
+    item = new CoffeeMenu(menu.name, menu.base_price, iced, true, special);
+    item._shot_count = shotCount;
+    if(clone.whip>0) item._whip_count = clone.whip;
+  } else if(menu instanceof TeaMenu){
+    const iced    = clone.hotCold === 'ice';
+    const blend   = (clone.blend||0) > 0;
+    const special = (clone.honey||0) > 0;
+    item = new TeaMenu(menu.name, menu.base_price, iced, blend, special);
+    if(clone.honey>0) item._honey_count = clone.honey;
+    if(clone.blend>0) item._blend_count = clone.blend;
+  } else if(menu instanceof DessertMenu){
+    const special = (clone.cream||0) > 0;
+    item = new DessertMenu(menu.name, menu.base_price, clone.size||'regular', special);
+    if(clone.cream>0) item._cream_count = clone.cream;
+  }
+  return item;
+}
+
+function itemTitle(menu){ if(menu instanceof CoffeeMenu) return menu.describe(); if(menu instanceof TeaMenu) return menu.describe(); if(menu instanceof DessertMenu) return menu.describe(); return menu.describe(); }
+function itemDetail(menu){ let extras = []; if(menu instanceof CoffeeMenu){ if(menu.is_iced) extras.push('아이스'); if(menu._has_shot) extras.push(`샷 ${menu._shot_count||1}개`); if(menu._whip_count) extras.push(`휘핑 ${menu._whip_count}`); } else if(menu instanceof TeaMenu){ if(menu.is_iced) extras.push('아이스'); if(menu._is_blend) extras.push('블렌딩'); if(menu._honey_count) extras.push(`꿀 ${menu._honey_count}`); if(menu._special_request) extras.push('꿀 추가'); } else if(menu instanceof DessertMenu){ extras.push(menu.size==='large'?'Large':'Regular'); if(menu._cream_count) extras.push(`생크림 ${menu._cream_count}`); } return extras.length ? extras.join(' · ') : '기본'; }
+function addToCart(){ if(!selectedMenu || !tempOptionState) return; const built = buildTempOrder(selectedMenu, tempOptionState); cart.push(built); renderCart(); optionPanelWrap.classList.add('hidden'); tempOptionState = null; selectedMenu = null; }
+function removeCart(index){ cart.splice(index,1); renderCart(); }
+function clearTemp(){ optionPanelWrap.classList.add('hidden'); tempOptionState = null; selectedMenu = null; }
+function renderCart(){ cartList.innerHTML = cart.length ? cart.map((m,idx)=>`<div class="result-box order-item"><div class="flex justify-between gap-3"><div><div class="font-black">${idx+1}. ${itemTitle(m)}</div><div class="text-sm mt-1" style="color:var(--muted)">${itemDetail(m)}</div></div><div class="text-right"><div class="font-black">${money(m.calculate_price())}</div><button class="text-sm mt-2 underline" data-del="${idx}">삭제</button></div></div></div>`).join('') : `<div class="result-box text-sm" style="color:var(--muted)">아직 담은 주문이 없습니다.</div>`; cartTotal.textContent = money(cart.reduce((s,m)=>s+m.calculate_price(),0)); cartCountChip.textContent = `${cart.length}개 담김`; $$('[data-del]').forEach(btn=>btn.addEventListener('click',()=>removeCart(Number(btn.dataset.del)))); }
+function openCheckout(){ checkoutList.innerHTML = cart.length ? cart.map((m,idx)=>`<div class="order-item"><div class="flex justify-between gap-3"><div><div class="font-black">${idx+1}. ${itemTitle(m)}</div><div class="text-sm mt-1" style="color:var(--muted)">${itemDetail(m)}</div></div><div class="font-black">${money(m.calculate_price())}</div></div></div>`).join('') : `<div class="result-box">주문할 메뉴가 없습니다.</div>`; checkoutTotal.textContent = cartTotal.textContent; checkoutModal.classList.remove('hidden'); }
+function closeCheckout(){ checkoutModal.classList.add('hidden'); }
+
+
+
+
+$$('.node').forEach(node => node.addEventListener('click', ()=>selectClassNode(node.dataset.node)));
+$('#backToVisualBtn').addEventListener('click', ()=>document.querySelector('main').scrollIntoView({behavior:'smooth'}));
+$('#themeBtn').addEventListener('click', ()=>{ const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', cur); $('#themeBtn').textContent = cur === 'dark' ? '☀️ 라이트모드' : '🌙 다크모드'; });
+$('#closeOrderBtn').addEventListener('click', () => {
+  orderUI.classList.add('hidden');
+  $('#closeOrderBtn').classList.add('hidden');
+  $('#openOrderBtn').classList.remove('hidden');
+});
+$('#openOrderBtn').addEventListener('click', () => {
+  $('#openOrderBtn').classList.add('hidden');
+  $('#closeOrderBtn').classList.remove('hidden');
+  orderUI.classList.remove('hidden');
+  $('#actualArea').scrollIntoView({behavior:'smooth', block:'start'});
+});
+$('#cancelOptionBtn').addEventListener('click', clearTemp);
+$('#addToCartBtn').addEventListener('click', addToCart);
+$('#finalOrderBtn').addEventListener('click', openCheckout);
+$('#closeCheckoutBtn').addEventListener('click', closeCheckout);
+$('#payBtn').addEventListener('click', ()=>{ alert(`✅ 결제가 완료되었습니다!\n총 결제 금액: ${cart.reduce((s,m)=>s+m.calculate_price(),0).toLocaleString()}원`); cart.length = 0; renderCart(); closeCheckout(); });
+
+
+
+renderTabs();
+renderMenuGrid();
+selectClassNode('menuadt', false);
+renderCart();
+renderInstances();
+</script>
+</body>
+</html>
